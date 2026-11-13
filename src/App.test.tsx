@@ -1,14 +1,18 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {cleanup, fireEvent, render, screen, within} from '@testing-library/react';
 import App from './App';
+import {oregonOfficial} from './data/states/oregon';
 
 afterEach(() => {cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals();});
 const change = (element: HTMLElement, value: string) => fireEvent.change(element, {target: {value}});
+const wyden = oregonOfficial('Wyden');
+const bonamici = oregonOfficial('Bonamici');
 
 describe('composer', () => {
   it('discloses local composition, clipboard use and hosting privacy without hiding the notice', () => {
     render(<App/>);
-    expect(screen.getByText('Find official congressional contact channels, write your own message, and explore public petitions. Your message stays in your browser. Nothing is submitted automatically.')).toBeTruthy();
+    expect(screen.getByText('Find official congressional contact channels for current members, write your own message, and explore public petitions. Your message stays in your browser. Nothing is submitted automatically.')).toBeTruthy();
+    expect(screen.getByText(/U\.S\. CONGRESS · CIVIC CONTACT/)).toBeTruthy();
     const disclosure = screen.getByRole('region', {name:'Your privacy'});
     expect(disclosure.closest('details')).toBeNull();
     expect(disclosure.textContent).toContain('browser memory');
@@ -30,7 +34,7 @@ describe('composer', () => {
     const social = screen.getByRole('region', {name:'Social'});
     expect(social.querySelector('details, summary')).toBeNull();
     change(screen.getByLabelText('Your social draft'), 'Retain my draft');
-    change(screen.getByLabelText('Congressional office'), 'wyden');
+    change(screen.getByLabelText('Congressional office'), wyden.id);
     expect(screen.getByLabelText<HTMLTextAreaElement>('Your social draft').value).toBe('Retain my draft');
   });
 
@@ -44,7 +48,7 @@ describe('composer', () => {
       expect(within(contact).getByRole('link', {name:/225-0855.*Call Suzanne/}).getAttribute('href')).toBe('tel:+12022250855');
       expect(within(contact).getByRole('button', {name:/Copy Suzanne/}).textContent).toBe('Copy');
     }
-    change(screen.getByLabelText('Congressional office'), 'wyden');
+    change(screen.getByLabelText('Congressional office'), wyden.id);
     const selectedContact = within(composer).getByRole('group', {name:'Contact Ron Wyden'});
     expect(within(selectedContact).getByRole('heading', {name:'Ron Wyden'})).toBeTruthy();
     expect(within(selectedContact).getByText('U.S. Senator')).toBeTruthy();
@@ -52,7 +56,8 @@ describe('composer', () => {
   });
   it('preserves petition filtering and external contact links', () => {
     render(<App/>);
-    expect(screen.getByRole('link', {name: 'Open official form for Suzanne Bonamici'}).getAttribute('href')).toBe('https://bonamici.house.gov/contact/email');
+    const form = bonamici.contacts.find(c => c.kind === 'contact-form')!;
+    expect(screen.getByRole('link', {name: 'Open official form for Suzanne Bonamici'}).getAttribute('href')).toBe(form.kind === 'contact-form' ? form.url : '');
     change(screen.getByLabelText('Filter'), 'house');
     expect(screen.queryByRole('heading', {name: 'Remove Chuck Schumer for a younger leader'})).toBeNull();
     expect(screen.getByRole('heading', {name: 'Remove Chuck Schumer and Hakeem Jeffries from leadership roles'})).toBeTruthy();

@@ -1,6 +1,6 @@
 # Dear Representative
 
-A privacy-conscious React + TypeScript + Vite civic contact tool, initially populated with Oregon's congressional delegation and a congressional leadership campaign.
+A privacy-conscious React + TypeScript + Vite civic contact tool for current U.S. congressional members (imported from unitedstates/congress-legislators) with a congressional leadership campaign.
 
 ## Contact multiple offices
 
@@ -32,24 +32,9 @@ Copy and Open are separate actions. Profile/platform URLs contain no draft text;
 
 Bluesky counts [300 Unicode grapheme clusters](https://github.com/bluesky-social/bsky-docs/blob/main/docs/advanced-guides/intent-links.md). `Intl.Segmenter` supplies the count when supported; otherwise the UI explicitly reports exact counting unavailable. X displays guidance for its [standard 280-weighted-character limit](https://docs.x.com/fundamentals/counting-characters), without an inaccurate exact counter. Overlength drafts remain editable/copyable and are never truncated. Final validation and mention recognition belong to the destination platform. Instagram, native sharing, prefilled intents, and social-specific campaign templates are deferred.
 
-### Verification record — 2026-11-09
+### Social accounts in generated member data
 
-These government pages publish the recorded official-office identities. Six Bluesky destination profiles were also readable and matched the official identities. X profile pages are not independently inspected successfully in this environment; verification here means the government-published account identity/link, not tested platform functionality, activity, or willingness to accept correspondence. Legacy Twitter links are normalized to X with the same handle.
-
-| Official | Bluesky | X | Government evidence |
-|---|---|---|---|
-| Ron Wyden | `wyden.senate.gov` | Not recorded | [News / Contact-Social](https://www.wyden.senate.gov/news) |
-| Jeff Merkley | Not recorded | `SenJeffMerkley` | [Follow Jeff](https://www.merkley.senate.gov/connect/follow-jeff/) |
-| Suzanne Bonamici | `repbonamici.bsky.social` | Not recorded | [Official website](https://bonamici.house.gov/) |
-| Cliff Bentz | Not recorded | `RepBentz` | [Official website](https://bentz.house.gov/) |
-| Maxine Dexter | `repdexteror.bsky.social` | `repdexteror` | [Official website](https://dexter.house.gov/) |
-| Val Hoyle | `repvalhoyle.bsky.social` | `RepValHoyle` | [Official website](https://hoyle.house.gov/) |
-| Janelle Bynum | `bynum.house.gov` | `repbynum` | [Official website](https://bynum.house.gov/) |
-| Andrea Salinas | `salinas.house.gov` | `repsalinas` | [Official website](https://salinas.house.gov/) |
-
-Unresolved: Wyden/Bonamici X and Merkley/Bentz Bluesky are not established by this review and are omitted, not declared nonexistent. Merkley's `jeff-merkley.bsky.social` appears in third-party listings, but official-office classification was not established from the reviewed government sources; it is not published. No personal/campaign substitute is included. Wyden's separately linked press-office and committee profiles are outside the selected member-profile scope.
-
-Before releases and after officeholder/handle changes, follow the government source and inspect the destination. Verify ownership and official-office classification, record the exact handle/profile URL, source URLs, and `lastVerified` date. A platform badge alone is insufficient. Do not guess missing accounts, infer classification from a name, or mark an account unverified solely because a platform blocks automated inspection when government evidence establishes it. Remove or withhold records whose ownership/classification cannot be substantiated. Keep unresolved findings in maintenance notes rather than displaying them as verified. Tests validate structure and URLs, not real-world ownership; verification is a manual research task with no visitor-triggered network calls.
+X/Twitter handles currently come from `legislators-social-media.json` during `npm run generate:legislators`. Bluesky is **not** published in that dataset, so generated records omit Bluesky rather than inventing handles. Profile destination pages are not interaction-tested by the importer; `lastVerified` is the generation date. For a deeper hand review of Bluesky or classification disputes, record evidence separately and/or extend the generator — do not guess missing accounts. Tests validate structure and URLs, not real-world ownership. No visitor-triggered network calls. The office picker is a type-ahead autocomplete over the full national list (~500 members); directory and multi-office cards stay scoped to the selected member’s state delegation.
 
 ## Run
 
@@ -63,12 +48,13 @@ Use Node.js 24 LTS. For a reproducible install from the lockfile, use `npm ci`.
 Development checks:
 
 ```bash
+npm run generate:legislators   # refresh all current officials from congress-legislators (network; commit the result)
 npm test
 npm run typecheck
 npm run build
 ```
 
-Tests use Vitest, jsdom, and React Testing Library as development-only dependencies. They cover exact original wording for all six templates, placeholder rendering, optional sender fields, chamber selection, editing, copying, reset, petition filtering, and data consistency. `npm run preview` serves the production build locally.
+Tests use Vitest, jsdom, and React Testing Library as development-only dependencies. They cover exact original wording for all six templates, placeholder rendering, optional sender fields, chamber selection, editing, copying, reset, petition filtering, and data consistency. `npm run preview` serves the production build locally. CI uses the checked-in generated file (no network required for ordinary builds).
 
 Build for static hosting:
 
@@ -122,7 +108,9 @@ Keep `dist/`, dependencies, certificates, CA material, and secrets out of commit
 
 - `src/campaigns/congressional-leadership/` — campaign details, subject, signature, curated petition links, and four independent template files under `templates/{house,senate}/{short,detailed}.ts`.
 - `src/campaigns/index.ts` — campaign registry; currently contains one campaign.
-- `src/data/states/oregon.ts` — separate Oregon state metadata and legislator records, including explicit salutations and typed contact methods.
+- `src/data/states/oregon.generated.ts` — checked-in Oregon legislator records generated from [unitedstates/congress-legislators](https://github.com/unitedstates/congress-legislators) JSON (bioguide IDs, contacts, district phones, X handles).
+- `src/data/states/oregon.ts` — Oregon state metadata plus a thin import/guard around the generated officials list.
+- `scripts/generate-oregon-legislators.mjs` — build-time importer (no browser/network fetch at runtime).
 - `src/data/states/index.ts` — state and legislator registries; only Oregon is populated.
 - `src/lib/messages.ts` — pure, reusable placeholder rendering and complete-message composition, with no campaign wording embedded in the renderer.
 - `src/types/index.ts` — separate state, legislator, contact method, campaign, message template, sender, and petition types.
@@ -142,31 +130,51 @@ Both composers independently use `src/lib/draft.ts`, a shared pure reducer holdi
 
 Future campaigns can supply the same six-template structure and their own details and petitions. Future states can supply independent state and legislator data. The UI currently selects Oregon and the congressional leadership campaign; state/campaign selectors and district lookup are not implemented. Contact methods distinguish web forms, websites, email addresses, and phone numbers, with independent verification metadata and method IDs.
 
-### Maintaining contact data
+### Maintaining contact data (congress-legislators import)
 
-Edit `src/data/states/oregon.ts`. Keep state metadata separate from legislators; each legislator has an explicit state, chamber, and optional House district. The reusable `ContactActions` component is shared by the composer and directory. `src/lib/contacts.ts` formats canonical U.S. numbers and selects relevant restriction notices. No runtime contact lookup or fetching is performed.
+Oregon dropdown data is **generated**, not hand-edited. The reusable `ContactActions` component is shared by the composer and directory. `src/lib/contacts.ts` formats canonical U.S. numbers and selects relevant restriction notices. **No visitor-triggered network fetch** of legislator data runs in the browser.
 
-1. Confirm serving officeholders and districts against the [House directory](https://www.house.gov/representatives) or [Senate Oregon directory](https://www.senate.gov/states/OR/intro.htm). Do not replace members with election winners before their terms begin.
-2. Follow each official website's constituent correspondence link. Record that exact entry URL, even if it begins with address verification. Do not label a general homepage as a form. Record a Washington, D.C. phone number separately from district numbers and fax numbers, in canonical `+1` format.
-3. Record `identityVerification` and each contact's `status`, `sourceUrls`, and `lastVerified` separately. A verified record requires official supporting URLs and the actual review date (`YYYY-MM-DD`). Unknown/unverified records use `lastVerified: null`. The verified date describes the published information, not a guarantee of availability or response. Include direct email only when explicitly published for general constituent correspondence; do not substitute press, scheduling, academy, or staff addresses.
-4. Keep form `functionality` independent of official-URL verification. `not-tested` means no independent interaction test was performed; `could-not-test` explains a specific inspection barrier. `tested` requires a date, explicit scope and notes describing what was actually tested. Reading fields or seeing an official link is not a successful submission test. Never send test messages or enter fabricated constituent data. A tool access error does not invalidate an officially published form link.
-5. Maintain `contactRestrictions` using method IDs in `appliesTo`. `type` describes the subject; `effect` distinguishes a response policy, required information, a verification step, and a documented submission block. Each verified restriction requires an official `sourceUrl` and `lastVerified`. Unverified claims and unknown policies must not be presented as established restrictions. A ZIP/address field alone does not establish refusal to respond, actual blocking, or a legal obligation. An empty array does not mean unrestricted access. For unknown entries, `sourceUrl` identifies a page reviewed, not proof of a restriction, and `lastVerified` stays null.
-6. Recheck sources before releases and when offices announce changes. If a detail cannot be established, label it unknown/unverified and document the limitation instead of guessing. Run all validation commands below after edits. Tests check data consistency, not live website availability.
+Refresh Oregon officials from the documented public JSON endpoints:
 
-Contact data reviewed **November 8, 2026**:
+```bash
+npm run generate:legislators
+```
 
-| Official | Seat | Washington, D.C. | Official form/source | Phone source |
-|---|---|---|---|---|
-| Ron Wyden | Senate, OR | (202) 224-5244 | [Contact page](https://www.wyden.senate.gov/contact) links to [Email Ron](https://www.wyden.senate.gov/contact/email-ron) | [Office locations](https://www.wyden.senate.gov/contact/office-locations) |
-| Jeff Merkley | Senate, OR | (202) 224-3753 | [Email Jeff](https://www.merkley.senate.gov/connect/contact/) | [Office locations](https://www.merkley.senate.gov/connect/office-locations/) |
-| Suzanne Bonamici | House, OR-1 | (202) 225-0855 | [Contact page](https://bonamici.house.gov/contact) links to [Email Suzanne](https://bonamici.house.gov/contact/email) | [Contact page](https://bonamici.house.gov/contact) |
-| Cliff Bentz | House, OR-2 | (202) 225-6730 | [Contact form](https://bentz.house.gov/contact) | [Contact page](https://bentz.house.gov/contact) |
-| Maxine Dexter | House, OR-3 | (202) 225-4811 | [Contact page](https://dexter.house.gov/contact) links to [Contact Me](https://dexter.house.gov/contact/email-me) | [Contact page](https://dexter.house.gov/contact) |
-| Val Hoyle | House, OR-4 | (202) 225-6416 | [Contact page](https://hoyle.house.gov/contact) links to [Email Val](https://hoyle.house.gov/contact/email-val?clear=) | [Official homepage](https://hoyle.house.gov/) |
-| Janelle Bynum | House, OR-5 | (202) 225-5711 | [Contact page](https://bynum.house.gov/contact) links to [address verification](https://bynum.house.gov/contact/email-me) | [Contact page](https://bynum.house.gov/contact) |
-| Andrea Salinas | House, OR-6 | (202) 225-5643 | [Address verification/contact entry](https://salinas.house.gov/contact) | [Contact page](https://salinas.house.gov/contact) |
+Pinned sources (unitedstates.github.io):
 
-The House and Senate directories above corroborate identity, official websites, and D.C. numbers. All eight official form entry URLs are verified; none has independently tested submission functionality. Wyden, Bonamici and Hoyle's correspondence controls were unavailable in retrieved content. Bynum and Salinas publish an address-verification step, whose next stage was not inspected without constituent information. Merkley, Bentz and Dexter's public instructions/form markup were inspected read-only, not interaction-tested. No direct email address was verified for general correspondence. Residency-based response policies and actual out-of-district submission blocking remain unestablished. These limitations do not imply that the forms are broken or that offices refuse correspondence.
+- `https://unitedstates.github.io/congress-legislators/legislators-current.json`
+- `https://unitedstates.github.io/congress-legislators/legislators-social-media.json`
+- `https://unitedstates.github.io/congress-legislators/legislators-district-offices.json`
+
+The script writes `src/data/states/oregon.generated.ts`, validates required fields (bioguide id, website, D.C. phone, two senators, House districts 1–6 for OR), and **fails with a clear error** instead of writing an empty dropdown. Commit the regenerated file after review. Generation dates become `lastVerified` / functionality `checkedAt` values — they mean “present in congress-legislators on this date,” not hand-tested form submissions.
+
+Mapping rules:
+
+1. Stable key: Bioguide id (`id.bioguide`).
+2. Contact-form URL: `term.contact_form` when present, otherwise the official site URL (`term.url`). Deep office-specific form paths from prior hand curation are not invented.
+3. Phones: `term.phone` as Washington, D.C.; district-office phones from `legislators-district-offices.json`. Canonical `+1` format. Fax numbers are ignored.
+4. Emails: never invented (congress-legislators does not supply constituent inboxes here).
+5. Social: X/Twitter handles from `legislators-social-media.json` when present. Bluesky is omitted because that dataset does not publish it.
+6. Restrictions: generated records use an honest `unknown-policy` entry; they do not claim address-verification or residency blocks without separate research.
+
+Expand to another state later:
+
+```bash
+npm run generate:legislators -- --state=WA --out=src/data/states/washington.generated.ts
+```
+
+Then add a thin wrapper like `oregon.ts`, register it in `src/data/states/index.ts`, and extend the UI selector. The importer already accepts any postal code.
+
+After regenerating:
+
+```bash
+npm test
+npm run typecheck
+npm run build
+git diff --check
+```
+
+Intentional differences from the former hand-curated `oregon.ts`: slug ids → bioguide ids; some official_full names (for example `Val T. Hoyle`, `Janelle S. Bynum`); form URLs often less deep when `contact_form` is missing; district phones included; Bluesky handles not carried over; restriction/address-verification notes no longer hand-asserted; verification metadata labeled as generated from congress-legislators.
 
 The contact UI shows the official form, Washington, D.C. location label, and a clickable phone number beside a compact **Copy** button. The number itself is the `tel:` link; calling occurs only when the visitor activates it. At the bottom of the composer, a labeled **Selected representative** area keeps the official's name, title and actions together above any expandable details. Sources, dates, testing scope and noncritical restrictions remain under **Sources and contact details**. Only verified response policies, verification steps, or submission blocks affecting displayed methods receive prominent notices. Phone numbers and websites remain available regardless of those notices.
 

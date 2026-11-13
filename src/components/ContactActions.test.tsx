@@ -1,22 +1,23 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import ContactActions from './ContactActions';
-import {officials} from '../data/states/oregon';
+import {oregonOfficial} from '../data/states/oregon';
 import type {Legislator} from '../types';
 
 afterEach(() => {cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deleteProperty(document, 'execCommand');});
-const official = officials.find(o => o.id === 'bynum')!;
+const official = oregonOfficial('Bynum');
 
 describe('contact actions', () => {
   it('shows a verified form, visible D.C. number and user-activated call link with details collapsed', () => {
     const {container} = render(<ContactActions official={official}/>);
-    expect(screen.getByRole('link', {name:'Official contact form ↗'}).getAttribute('href')).toBe('https://bynum.house.gov/contact/email-me');
+    const form = official.contacts.find(c => c.kind === 'contact-form')!;
+    expect(screen.getByRole('link', {name:'Official contact form ↗'}).getAttribute('href')).toBe(form.kind === 'contact-form' ? form.url : '');
     expect(screen.getByText('(202) 225-5711')).toBeTruthy();
     expect(screen.getByRole('link', {name:/Call Janelle/}).getAttribute('href')).toBe('tel:+12022255711');
     expect(container.querySelector('details')!.open).toBe(false);
     fireEvent.click(screen.getByText('Sources and contact details'));
     expect(container.querySelector('details')!.open).toBe(true);
-    expect(screen.getByText(/Functionality could not be tested/)).toBeTruthy();
+    expect(screen.getByText(/Functionality not independently tested/)).toBeTruthy();
   });
 
   it('copies only the number after a click and reports success', async () => {
@@ -37,20 +38,18 @@ describe('contact actions', () => {
     expect(screen.getByText('(202) 225-5711')).toBeTruthy();
   });
 
-  it('shows documented form verification prominently without blocking phone or website', () => {
+  it('keeps generated unknown policies in details without prominent restriction notices', () => {
     const {container} = render(<ContactActions official={official}/>);
-    expect(container.querySelector('.contact-notice')!.textContent).toContain('verify an address within the district');
+    expect(container.querySelector('.contact-notice')).toBeNull();
     expect(screen.getByRole('link', {name:'Official website ↗'})).toBeTruthy();
     expect(screen.getByRole('link', {name:/Call Janelle/})).toBeTruthy();
-    expect(screen.getByText(/A response is not guaranteed/)).toBeTruthy();
-    expect(container.querySelector('.contact-notice')!.textContent).not.toContain('blocks');
+    expect(container.querySelector('details')!.textContent).toMatch(/not published in congress-legislators/i);
   });
 
-  it('keeps unknown policy and ordinary required fields in the secondary area', () => {
-    const {container} = render(<ContactActions official={officials.find(o => o.id === 'merkley')!}/>);
+  it('keeps unknown policy text in the secondary area for senators', () => {
+    const {container} = render(<ContactActions official={oregonOfficial('Merkley')}/>);
     expect(container.querySelector('.contact-notice')).toBeNull();
-    expect(container.querySelector('details')!.textContent).toContain('requires an address');
-    expect(container.querySelector('details')!.textContent).toContain('Status: unknown');
+    expect(container.querySelector('details')!.textContent).toMatch(/Status: unknown/);
   });
 
   it('labels missing and unverified methods without conflating URL and functionality', () => {
@@ -83,10 +82,10 @@ describe('contact actions', () => {
   it('keeps selected identity above the actions and outside expandable details', () => {
     const {container, rerender} = render(<ContactActions official={official} variant="selected"/>);
     expect(screen.getByText('Selected representative')).toBeTruthy();
-    expect(screen.getByRole('heading', {name:'Janelle Bynum'}).closest('details')).toBeNull();
+    expect(screen.getByRole('heading', {name:official.name}).closest('details')).toBeNull();
     expect(screen.getByText('U.S. Representative · OR-5')).toBeTruthy();
     expect(container.querySelector('.contact-actions--selected')).toBeTruthy();
-    rerender(<ContactActions official={officials.find(o => o.id === 'wyden')!} variant="selected"/>);
+    rerender(<ContactActions official={oregonOfficial('Wyden')} variant="selected"/>);
     expect(screen.getByRole('heading', {name:'Ron Wyden'})).toBeTruthy();
     expect(screen.getByText('U.S. Senator')).toBeTruthy();
   });

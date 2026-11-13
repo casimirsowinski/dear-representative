@@ -2,7 +2,7 @@ import {afterEach, expect, it, vi} from 'vitest';
 import {cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
 import App from '../App';
 import SocialComposer from './SocialComposer';
-import {officials, oregon} from '../data/states/oregon';
+import {officials, oregon, oregonOfficial} from '../data/states/oregon';
 import {congressionalLeadership as campaign} from '../campaigns/congressional-leadership';
 import {renderBody} from '../lib/messages';
 import blueskyArtwork from '../assets/social/dear-representative-social-icons/bluesky.svg?raw';
@@ -11,6 +11,9 @@ import twitterArtwork from '../assets/social/dear-representative-social-icons/tw
 afterEach(() => {cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deleteProperty(document, 'execCommand');});
 const editor = () => screen.getByLabelText<HTMLTextAreaElement>('Your social draft');
 const change = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), {target:{value}});
+const bonamici = oregonOfficial('Bonamici');
+const wyden = oregonOfficial('Wyden');
+const bonamiciX = bonamici.socialAccounts!.find(a => a.platform === 'x')!;
 
 it('shows original decorative artwork in the permanent Social section heading', () => {
   render(<App/>);
@@ -48,7 +51,7 @@ it('starts empty and retains social text independently through official, templat
   change('Your name (optional)', 'Private Name');
   change('City (optional)', 'Private City');
   change('Message for Suzanne Bonamici', 'Letter only');
-  change('Congressional office', 'wyden');
+  change('Congressional office', wyden.id);
   change('Message length', 'detailed');
   change('Social platform', 'x');
   expect(editor().value).toBe('Keep my @recipient and words');
@@ -65,9 +68,9 @@ it('imports only rendered House/Senate bodies and offers Undo without confirmati
   change('Message for Suzanne Bonamici', 'Letter only');
   fireEvent.click(screen.getByRole('button', {name:'Use existing short template'}));
   expect(confirm).not.toHaveBeenCalled();
-  expect(editor().value).toBe(renderBody(campaign, officials.find(o => o.id === 'bonamici')!, oregon, 'short'));
+  expect(editor().value).toBe(renderBody(campaign, bonamici, oregon, 'short'));
   change('Your social draft', 'Keep me');
-  change('Congressional office', 'wyden');
+  change('Congressional office', wyden.id);
   fireEvent.click(screen.getByRole('button', {name:'Use existing short template'}));
   expect(editor().value).toBe(renderBody(campaign, officials[0], oregon, 'short'));
   fireEvent.click(screen.getByRole('button', {name:'Undo social draft replacement'}));
@@ -125,12 +128,12 @@ it('keeps social verification sources accessible in the existing details', () =>
   const region = screen.getByRole('region', {name:'Email, Form & Phone'});
   const contact = within(region).getByRole('group', {name:'Contact Suzanne Bonamici'});
   fireEvent.click(within(contact).getByText('Sources and contact details'));
-  const profile = within(contact).getByRole('link', {name:/Bluesky: @repbonamici/});
+  const profile = within(contact).getByRole('link', {name: new RegExp(`Twitter: @${bonamiciX.handle}`)});
   expect(profile.closest('details')?.open).toBe(true);
-  const source = within(contact).getByText(/Official-office social profile @repbonamici/);
+  const source = within(contact).getByText(new RegExp(`Official-office social profile @${bonamiciX.handle}`));
   expect(source.closest('details')).not.toBeNull();
-  expect(source.textContent).toContain('2026-11-09');
-  expect(within(source).getByRole('link', {name:'Source 1'}).getAttribute('href')).toBe('https://bonamici.house.gov/');
+  expect(source.textContent).toContain(bonamiciX.lastVerified);
+  expect(within(source).getByRole('link', {name:'Source 1'}).getAttribute('href')).toBe(bonamici.websiteUrl);
 });
 
 it('labels unavailable exact counting and keeps the draft usable', () => {

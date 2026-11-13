@@ -3,10 +3,14 @@ import {cleanup, fireEvent, render, screen, within} from '@testing-library/react
 import App from '../App';
 import MultiOfficeContact from './MultiOfficeContact';
 import {congressionalLeadership as campaign} from '../campaigns/congressional-leadership';
-import {officials, oregon} from '../data/states/oregon';
+import {officials, oregon, oregonOfficial} from '../data/states/oregon';
 
 afterEach(() => {cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflect.deleteProperty(document, 'execCommand');});
-const setup = () => render(<MultiOfficeContact officialId="bonamici" officials={officials} state={oregon} campaign={campaign} kind="short" sender={{}}/>);
+const bonamici = oregonOfficial('Bonamici');
+const wyden = oregonOfficial('Wyden');
+const merkley = oregonOfficial('Merkley');
+const bentz = oregonOfficial('Bentz');
+const setup = () => render(<MultiOfficeContact officialId={bonamici.id} officials={officials} state={oregon} campaign={campaign} kind="short" sender={{}}/>);
 const list = () => screen.getByRole('list', {name:'Selected offices'});
 const completed = (name: string) => screen.getByRole<HTMLInputElement>('checkbox', {name:`Completed by me: ${name}`});
 const options = () => fireEvent.click(screen.getByText('Choose additional offices or deselect recipients'));
@@ -23,25 +27,30 @@ it('has three unique default cards and a single representative selector', () => 
  expect(screen.getByRole('button',{name:'Open all 3 forms'})).toBeTruthy();
 });
 
-it.each([['bentz','Cliff Bentz'],['dexter','Maxine Dexter'],['hoyle','Val Hoyle'],['bynum','Janelle Bynum'],['salinas','Andrea Salinas']])('follows the composer selection %s without replacing the draft', (id,name) => {
+it.each([
+  [oregonOfficial('Bentz'),'Cliff Bentz'],
+  [oregonOfficial('Dexter'),'Maxine Dexter'],
+  [oregonOfficial('Hoyle'), oregonOfficial('Hoyle').name],
+  [oregonOfficial('Bynum'), oregonOfficial('Bynum').name],
+  [oregonOfficial('Salinas'),'Andrea Salinas'],
+])('follows the composer selection %s without replacing the draft', (official, name) => {
  render(<App/>);
  const editor=screen.getByLabelText<HTMLTextAreaElement>('Message for Suzanne Bonamici');
  fireEvent.change(editor,{target:{value:'Keep my edits'}});
- fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:id}});
+ fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:official.id}});
  expect(within(list()).getAllByRole('heading').map(h=>h.textContent)).toEqual([name,'Ron Wyden','Jeff Merkley']);
  expect(editor.value).toBe('Keep my edits');
 
- fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:'wyden'}});
+ fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:wyden.id}});
  expect(within(list()).getAllByRole('listitem')).toHaveLength(2);
-
 });
 
 it('adds offices without duplicates and retains manual progress through changes', () => {
  render(<App/>);fireEvent.click(completed('Suzanne Bonamici'));fireEvent.click(completed('Ron Wyden'));
- fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:'bentz'}});
+ fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:bentz.id}});
  expect(completed('Ron Wyden').checked).toBe(true); expect(completed('Cliff Bentz').checked).toBe(false);
  all(); expect(within(list()).getAllByRole('listitem')).toHaveLength(8);expect(completed('Suzanne Bonamici').checked).toBe(true);
- fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:'bonamici'}});
+ fireEvent.change(screen.getByLabelText('Congressional office'),{target:{value:bonamici.id}});
  expect(within(list()).getAllByRole('listitem')).toHaveLength(8);
  for(const input of within(screen.getByRole('group',{name:'Offices to contact'})).getAllByRole('checkbox')) fireEvent.click(input);
  expect(within(list()).queryAllByRole('listitem')).toHaveLength(0);
@@ -72,7 +81,7 @@ it('attempts only verified selected forms synchronously and reports partial or b
  setup();expect(open).not.toHaveBeenCalled();
  fireEvent.click(screen.getByRole('button',{name:'Open all 3 forms'}));
  expect(open).toHaveBeenCalledTimes(3);
- const ids=['bonamici','wyden','merkley'];
+ const ids=[bonamici.id, wyden.id, merkley.id];
  ids.forEach((id,i)=>{const form=officials.find(o=>o.id===id)!.contacts.find(c=>c.kind==='contact-form')!;expect(open).toHaveBeenNthCalledWith(i+1,form.kind==='contact-form'?form.url:'','_blank','noopener,noreferrer');});
  expect(screen.getByText(/2 tab openings could not be confirmed/)).toBeTruthy();
  expect(within(list()).getAllByRole('link',{name:/Open official form/})).toHaveLength(3);
@@ -81,7 +90,7 @@ it('attempts only verified selected forms synchronously and reports partial or b
 
 it('excludes unverified forms from bulk opening', () => {
  const open=vi.spyOn(window,'open').mockReturnValue(null);
- render(<MultiOfficeContact officialId="wyden" officials={[{...officials[0],contacts:officials[0].contacts.map(c=>({...c,status:'unknown',lastVerified:null}))}]} state={oregon} campaign={campaign} kind="short" sender={{}}/>);
+ render(<MultiOfficeContact officialId={wyden.id} officials={[{...officials[0],contacts:officials[0].contacts.map(c=>({...c,status:'unknown',lastVerified:null}))}]} state={oregon} campaign={campaign} kind="short" sender={{}}/>);
  expect(screen.getByRole<HTMLButtonElement>('button',{name:'Open all 0 forms'}).disabled).toBe(true);
  expect(within(list()).queryByRole('link',{name:/Open official form/})).toBeNull();expect(open).not.toHaveBeenCalled();
 });
@@ -97,4 +106,3 @@ it('offers overflow controls and keyboard scrolling without intercepting card co
  expect(scrollTo).toHaveBeenCalledWith({left:900,behavior:'auto'});
  scrollBy.mockClear();fireEvent.keyDown(completed('Ron Wyden'),{key:'ArrowRight'});expect(scrollBy).not.toHaveBeenCalled();
 });
-

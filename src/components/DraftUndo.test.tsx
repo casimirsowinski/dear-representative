@@ -2,7 +2,7 @@ import {afterEach, expect, it, vi} from 'vitest';
 import {cleanup, fireEvent, render, screen, within, waitFor} from '@testing-library/react';
 import App from '../App';
 import {renderBody} from '../lib/messages';
-import {officials, oregon} from '../data/states/oregon';
+import {officials, oregon, oregonOfficial} from '../data/states/oregon';
 import {congressionalLeadership as campaign} from '../campaigns/congressional-leadership';
 
 afterEach(() => {cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();Reflect.deleteProperty(document,'execCommand');});
@@ -10,6 +10,7 @@ const card=(name:string)=>within(within(screen.getByRole('list',{name:'Selected 
 const editor=(name:string)=>screen.getByLabelText<HTMLTextAreaElement>(`Message for ${name}`);
 const change=(label:string,value:string)=>fireEvent.change(screen.getByLabelText(label),{target:{value}});
 const bon='Suzanne Bonamici', ron='Ron Wyden', jeff='Jeff Merkley';
+const bonamici=oregonOfficial('Bonamici'), bentz=oregonOfficial('Bentz'), dexter=oregonOfficial('Dexter');
 const reset=(name:string)=>fireEvent.click(card(name).getByRole('button',{name:'Reset to selected template'}));
 const undo=(name:string)=>fireEvent.click(card(name).getByRole('button',{name:'Undo letter draft replacement'}));
 
@@ -20,29 +21,29 @@ it('renders only recipient editors with correctly addressed chamber templates an
  expect(screen.queryByLabelText('Your message')).toBeNull();
  expect(screen.getAllByLabelText('Your name (optional)')).toHaveLength(1);
  for(const name of [bon,ron,jeff])expect(editor(name).value).toBe(renderBody(campaign,officials.find(o=>o.name===name)!,oregon,'short'));
- expect(section.querySelectorAll('input:not([type=checkbox])')).toHaveLength(2);
+ expect(section.querySelectorAll('input:not([type=checkbox])')).toHaveLength(3); // office search + name + city
  expect(screen.getByLabelText('Your name (optional)').compareDocumentPosition(editor(bon)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
 it('preserves independent edits and Undo through selection, length changes, removal and return',()=>{
  render(<App/>);change(`Message for ${bon}`,'  Exact letter\n👨‍👩‍👧‍👦  ');change(`Message for ${ron}`,'Senate edits');
- reset(bon);change('Congressional office','bentz');change('Message length','short');
- expect(editor(ron).value).toBe('Senate edits');change('Congressional office','bonamici');
+ reset(bon);change('Congressional office',bentz.id);change('Message length','short');
+ expect(editor(ron).value).toBe('Senate edits');change('Congressional office',bonamici.id);
  undo(bon);expect(editor(bon).value).toBe('  Exact letter\n👨‍👩‍👧‍👦  ');expect(document.activeElement).toBe(editor(bon));
  expect(editor(ron).value).toBe('Senate edits');
- change(`Message for ${bon}`,'');change('Congressional office','bentz');change('Congressional office','bonamici');expect(editor(bon).value).toBe('');
+ change(`Message for ${bon}`,'');change('Congressional office',bentz.id);change('Congressional office',bonamici.id);expect(editor(bon).value).toBe('');
  reset(bon);undo(bon);expect(editor(bon).value).toBe('');
 });
 
 it('resets all selected drafts explicitly with independent Undo, leaving hidden drafts and social alone',()=>{
- render(<App/>);change(`Message for ${bon}`,'Hidden House draft');change('Congressional office','bentz');
+ render(<App/>);change(`Message for ${bon}`,'Hidden House draft');change('Congressional office',bentz.id);
  change(`Message for ${ron}`,'  Previous Senate\n ');change('Your social draft','Independent social');change('Message length','detailed');
  const previous=editor(jeff).value;
  fireEvent.click(screen.getByRole('button',{name:'Reset all selected messages'}));
  for(const name of ['Cliff Bentz',ron,jeff])expect(editor(name).value).toBe(renderBody(campaign,officials.find(o=>o.name===name)!,oregon,'detailed'));
  undo(ron);expect(editor(ron).value).toBe('  Previous Senate\n ');
  expect(editor(jeff).value).not.toBe(previous);undo(jeff);expect(editor(jeff).value).toBe(previous);
- change('Congressional office','bonamici');expect(editor(bon).value).toBe('Hidden House draft');
+ change('Congressional office',bonamici.id);expect(editor(bon).value).toBe('Hidden House draft');
  expect(screen.getByLabelText<HTMLTextAreaElement>('Your social draft').value).toBe('Independent social');
 });
 
@@ -50,7 +51,7 @@ it('initializes newly added offices with the current length and retains them aft
  render(<App/>);change('Message length','short');
  fireEvent.click(screen.getByText('Choose additional offices or deselect recipients'));
  fireEvent.click(screen.getByRole('checkbox',{name:'Maxine Dexter — House OR-3'}));
- expect(editor('Maxine Dexter').value).toBe(renderBody(campaign,officials.find(o=>o.id==='dexter')!,oregon,'short'));
+ expect(editor('Maxine Dexter').value).toBe(renderBody(campaign,dexter,oregon,'short'));
  change('Message for Maxine Dexter','Keep this');
  fireEvent.click(screen.getByRole('checkbox',{name:'Maxine Dexter — House OR-3'}));change('Message length','detailed');
  fireEvent.click(screen.getByRole('checkbox',{name:'Maxine Dexter — House OR-3'}));expect(editor('Maxine Dexter').value).toBe('Keep this');
@@ -100,9 +101,9 @@ it('updates shared fields across hidden drafts while respecting recipient-specif
  const bonOriginal=editor(bon).value;
  change(`Message for ${bon}`,bonOriginal.replace('Sincerely,\nAlex','With respect,\nAlex'));
  change(`Message for ${ron}`,editor(ron).value.replace('Salem, Oregon','My manually entered location'));
- change('Congressional office','bentz');
+ change('Congressional office',bentz.id);
  change('Your name (optional)','Sam');change('City (optional)','Portland');change('Message length','short');
- change('Congressional office','bonamici');
+ change('Congressional office',bonamici.id);
  expect(editor(bon).value).toContain('With respect,\nAlex\nPortland, Oregon');
  expect(editor(ron).value).toContain('Sincerely,\nSam\nMy manually entered location');
  change('Your name (optional)','');change('City (optional)','');

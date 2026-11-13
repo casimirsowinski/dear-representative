@@ -1,7 +1,7 @@
 import {expect, it} from 'vitest';
 import {actOnPersonalizedDraft, createPersonalizedDraft, personalizeDraft, replacePersonalizedDraft} from './personalizedDraft';
 import type {DraftOrigin} from './draft';
-const origin: DraftOrigin = {campaignId:'test', officialId:'bonamici', chamber:'house', stateCode:'OR', template:'short'};
+const origin: DraftOrigin = {campaignId:'test', officialId:'B001278', chamber:'house', stateCode:'OR', template:'short'};
 const make = (name = '', city = '') => createPersonalizedDraft('Dear Representative Bonamici,\n\nMy words.', origin, {name, city}, 'Oregon');
 const body = make().text;
 

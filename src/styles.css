@@ -80,6 +80,11 @@ main.wrap{max-width:none; margin:0; padding:0}
 label{font-size:.88rem; font-weight:700; display:flex; flex-direction:column; gap:8px}
 input,select,textarea{width:100%; font:inherit; color:inherit; border:1px solid var(--control-border); border-radius:8px; padding:11px 12px; background:var(--input)}
 textarea{resize:vertical; line-height:1.6}
+.official-autocomplete{position:relative; min-width:0}
+.official-autocomplete-list{position:absolute; z-index:5; left:0; right:0; top:calc(100% + 4px); margin:0; padding:6px 0; list-style:none; max-height:280px; overflow:auto; background:var(--input); border:1px solid var(--control-border); border-radius:8px; box-shadow:0 10px 24px color-mix(in srgb, var(--text) 16%, transparent)}
+.official-autocomplete-list li{padding:10px 12px; cursor:pointer; font-size:.92rem; font-weight:600; line-height:1.35}
+.official-autocomplete-list li.is-active,.official-autocomplete-list li:hover{background:var(--selected); color:var(--text)}
+.official-autocomplete-empty{color:var(--muted); cursor:default; font-weight:500}
 .wide{margin:20px 0}
 .hint{font-size:.83rem; color:var(--muted); line-height:1.5}
 .actions{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:18px}

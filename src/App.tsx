@@ -7,22 +7,23 @@ import SocialComposer from './components/SocialComposer';
 import DelegationDirectory from './components/DelegationDirectory';
 import PetitionDirectory from './components/PetitionDirectory';
 import {campaigns} from './campaigns';
-import {states, legislators} from './data/states';
+import {legislators} from './data/states';
+import {stateFor} from './data/states/current';
 
 export default function App() {
-  const state = states[0];
   const campaign = campaigns[0];
-  const officials = legislators.filter(official => official.state === state.code);
-  const [officialId, setOfficialId] = useState('bonamici');
-  const official = officials.find(o => o.id === officialId)!;
+  const [officialId, setOfficialId] = useState('B001278'); // Suzanne Bonamici (bioguide)
+  const official = legislators.find(o => o.id === officialId) ?? legislators[0];
+  const state = stateFor(official.state);
+  const delegation = legislators.filter(o => o.state === official.state);
 
   return (
     <div className="site">
       <header className="hero">
         <div className="wrap">
-          <div className="eyebrow">{state.name.toUpperCase()} · CIVIC CONTACT</div>
+          <div className="eyebrow">U.S. CONGRESS · CIVIC CONTACT</div>
           <h1>Make your voice heard.</h1>
-          <p>Find official congressional contact channels, write your own message, and explore public petitions. Your message stays in your browser. Nothing is submitted automatically.</p>
+          <p>Find official congressional contact channels for current members, write your own message, and explore public petitions. Your message stays in your browser. Nothing is submitted automatically.</p>
           <nav className="section-nav" aria-label="Page sections">
             <a href="#contact">01 / Email, Form &amp; Phone</a>
             <a href="#social">02 / Social</a>
@@ -33,7 +34,14 @@ export default function App() {
         </div>
       </header>
       <main className="wrap">
-        <MessageComposer campaign={campaign} officials={officials} state={state} officialId={officialId} onOfficialChange={setOfficialId}/>
+        <MessageComposer
+          campaign={campaign}
+          officials={legislators}
+          delegation={delegation}
+          state={state}
+          officialId={official.id}
+          onOfficialChange={setOfficialId}
+        />
         <section id="social" className="panel" aria-labelledby="social-title">
           <div className="eyebrow">02 / SOCIAL</div>
           <h2 id="social-title" className="social-heading-content">Social
@@ -46,7 +54,7 @@ export default function App() {
           <SocialComposer campaign={campaign} official={official} state={state}/>
         </section>
         <PetitionDirectory petitions={campaign.petitions}/>
-        <DelegationDirectory officials={officials} state={state}/>
+        <DelegationDirectory officials={delegation} state={state}/>
         {campaign.research && <SourcesContext research={campaign.research}/>}
       </main>
       <footer className="wrap">

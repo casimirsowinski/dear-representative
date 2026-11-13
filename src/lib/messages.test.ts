@@ -6,8 +6,8 @@ import { renderBody, renderCompleteMessage, renderSubject, renderTemplate } from
 import baseline from './__fixtures__/approved-messages.json';
 import type { Sender } from '../types';
 const state = states[0];
-const house = legislators.find(o => o.id === 'bonamici')!;
-const senate = legislators.find(o => o.id === 'wyden')!;
+const house = legislators.find(o => o.id === 'B001278')!; // Bonamici
+const senate = legislators.find(o => o.id === 'W000779')!; // Wyden
 describe('message rendering', () => {
     for (const official of [house, senate]) {
         for (const kind of ['short', 'detailed'] as const) {
@@ -51,15 +51,18 @@ describe('message rendering', () => {
     });
 });
 describe('data consistency', () => {
-    it('has unique identifiers and valid Oregon contacts without invented verification', () => {
-        expect(states.map(s => s.code)).toEqual(['OR']);
+    it('has unique identifiers and valid national contacts without invented verification', () => {
+        expect(states[0]?.code).toBe('OR');
+        expect(states.map(s => s.code)).toContain('OR');
+        expect(states.length).toBeGreaterThan(50);
         expect(new Set(legislators.map(o => o.id)).size).toBe(legislators.length);
-        expect(legislators).toHaveLength(8);
+        expect(legislators.length).toBeGreaterThanOrEqual(500);
+        expect(legislators.filter(o => o.state === 'OR')).toHaveLength(8);
         for (const official of legislators) {
             expect(states.some(s => s.code === official.state)).toBe(true);
             expect(official.salutation).toBeTruthy();
             if (official.chamber === 'house')
-                expect(official.district).toBeGreaterThan(0);
+                expect(official.district).toBeGreaterThanOrEqual(0);
             else
                 expect(official.district).toBeUndefined();
         }
